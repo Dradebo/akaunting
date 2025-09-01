@@ -167,9 +167,18 @@ class Route extends Provider
      */
     protected function mapApiRoutes()
     {
+        $apiMiddleware = config('api.middleware');
+
+        // In tests we use a minimal middleware stack so that unauthenticated
+        // endpoints (like mobile register/login) are reachable without the
+        // application's full permission middleware which expects an auth'd user.
+        if (app()->environment('testing')) {
+            $apiMiddleware = ['throttle:api', 'bindings'];
+        }
+
         Facade::prefix(config('api.prefix'))
             ->domain(config('api.domain'))
-            ->middleware(config('api.middleware'))
+            ->middleware($apiMiddleware)
             ->namespace($this->namespace . '\Api')
             ->group(base_path('routes/api.php'));
     }

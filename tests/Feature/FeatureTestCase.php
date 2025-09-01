@@ -35,7 +35,7 @@ abstract class FeatureTestCase extends TestCase
      * @param Company|null $company
      * @return FeatureTestCase
      */
-    public function loginAs($user = null, Company $company = null)
+    public function loginAs($user = null, ?Company $company = null)
     {
         if (!$user) {
             $user = $this->user;

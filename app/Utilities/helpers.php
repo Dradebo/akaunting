@@ -378,7 +378,7 @@ if (! function_exists('is_cloud')) {
 }
 
 if (! function_exists('request_is_install')) {
-    function request_is_install(Request|null $request = null): bool
+    function request_is_install(?Request $request = null): bool
     {
         $r = $request ?: request();
 
@@ -387,7 +387,7 @@ if (! function_exists('request_is_install')) {
 }
 
 if (! function_exists('request_is_api')) {
-    function request_is_api(Request|null $request = null): bool
+    function request_is_api(?Request $request = null): bool
     {
         $r = $request ?: request();
 
@@ -396,7 +396,7 @@ if (! function_exists('request_is_api')) {
 }
 
 if (! function_exists('request_is_auth')) {
-    function request_is_auth(Request|null $request = null): bool
+    function request_is_auth(?Request $request = null): bool
     {
         $r = $request ?: request();
 
@@ -405,7 +405,7 @@ if (! function_exists('request_is_auth')) {
 }
 
 if (! function_exists('request_is_signed')) {
-    function request_is_signed(Request|null $request = null, int $company_id = null): bool
+    function request_is_signed(?Request $request = null, ?int $company_id = null): bool
     {
         if (is_null($company_id)) {
             return false;
@@ -418,7 +418,7 @@ if (! function_exists('request_is_signed')) {
 }
 
 if (! function_exists('request_is_portal')) {
-    function request_is_portal(Request|null $request = null, int $company_id = null): bool
+    function request_is_portal(?Request $request = null, ?int $company_id = null): bool
     {
         if (is_null($company_id)) {
             return false;

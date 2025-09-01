@@ -272,14 +272,14 @@ class Document extends Model
         $this->document_number = app(DocumentNumber::class)->getNextNumber($type, $src->contact);
     }
 
-    public function getSentAtAttribute(string $value = null)
+    public function getSentAtAttribute(?string $value = null)
     {
         $sent = $this->histories()->where('document_histories.status', 'sent')->first();
 
         return $sent->created_at ?? null;
     }
 
-    public function getReceivedAtAttribute(string $value = null)
+    public function getReceivedAtAttribute(?string $value = null)
     {
         $received = $this->histories()->where('document_histories.status', 'received')->first();
 

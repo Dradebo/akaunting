@@ -18,3 +18,15 @@ if (version_compare(PHP_VERSION, AKAUNTING_PHP, '<')) {
 
 // Load composer for core
 require __DIR__ . '/../vendor/autoload.php';
+
+// Optional: when DUMP_DEPRECATIONS=1 is set, convert deprecation notices to exceptions
+// so PHPUnit will show file/line traces for vendor deprecations. This is temporary.
+if (getenv('DUMP_DEPRECATIONS') === '1') {
+    set_error_handler(function ($errno, $errstr, $errfile, $errline) {
+        if ($errno === E_DEPRECATED || $errno === E_USER_DEPRECATED) {
+            throw new \ErrorException($errstr, 0, $errno, $errfile, $errline);
+        }
+        // fallback to PHP internal handler for other errors
+        return false;
+    });
+}

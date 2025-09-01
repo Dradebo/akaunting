@@ -12,6 +12,25 @@ Route::group(['as' => 'api.'], function () {
     // Ping
     Route::get('ping', 'Common\Ping@pong')->name('ping');
 
+    // Mobile (Phase A)
+    // Use a minimal middleware stack for mobile endpoints so they are
+    // accessible to mobile clients without requiring global API permissions
+    // (which would block unauthenticated registration/login flows).
+    Route::prefix('mobile')->middleware(['throttle:api', 'bindings'])->group(function () {
+        // Controller namespace resolved to App\Http\Controllers\Api by RouteServiceProvider
+        Route::post('register', 'Mobile\\AuthController@register');
+        Route::post('login', 'Mobile\\AuthController@login');
+
+        Route::middleware(['auth:sanctum'])->group(function () {
+            // Optional endpoints (placeholders) — controllers may be added later
+            // Route::get('config', 'Mobile\\ConfigController@index');
+            // Route::get('summary', 'Mobile\\SummaryController@index');
+            Route::get('transactions', 'Mobile\\TransactionController@index');
+            Route::post('transactions', 'Mobile\\TransactionController@store');
+            Route::post('sync', 'Mobile\\SyncController@sync');
+        });
+    });
+
     // Users
     Route::get('users/{user}/enable', 'Auth\Users@enable')->name('users.enable');
     Route::get('users/{user}/disable', 'Auth\Users@disable')->name('users.disable');
