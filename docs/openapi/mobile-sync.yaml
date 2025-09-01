@@ -1,0 +1,240 @@
+openapi: 3.0.3
+info:
+  title: Akaunting Mobile Sync API (Phase A)
+  version: "1.0.0"
+  description: |
+    Mobile-first sync and auth API used by Phase A mobile clients. Designed for
+    offline-capable clients using idempotent operations (client UUIDs) and
+    timestamp-based conflict detection. This contract covers register/login,
+    simple transaction create/list, and a batch sync endpoint.
+
+servers:
+  - url: /api
+    description: Local API root (use full host in production)
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [phone, name, pin]
+      properties:
+        phone:
+          type: string
+          description: Local phone number in E.164 (recommended)
+        name:
+          type: string
+        pin:
+          type: string
+          description: Short PIN used by the mobile app (server may map to credentials)
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+
+    TransactionPayload:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [income, expense]
+        amount_minor:
+          type: integer
+          description: Amount in minor units (e.g., cents)
+        date:
+          type: string
+          format: date
+        notes:
+          type: string
+        category_id:
+          type: integer
+
+    TransactionResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        amount:
+          type: integer
+        date:
+          type: string
+          format: date
+        notes:
+          type: string
+
+    SyncRecord:
+      type: object
+      required: [client_id, op, payload]
+      properties:
+        client_id:
+          type: string
+          description: Client-generated UUID for idempotency
+        op:
+          type: string
+          enum: [create, update, delete]
+        payload:
+          type: object
+          description: Operation payload (see TransactionPayload for transaction records)
+        client_updated_at:
+          type: string
+          format: date-time
+          description: Optional timestamp representing client's last edit time
+
+    SyncRequest:
+      type: object
+      required: [device_id, records]
+      properties:
+        device_id:
+          type: string
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncRecord'
+
+    SyncAppliedItem:
+      type: object
+      properties:
+        client_id:
+          type: string
+        server_id:
+          type: integer
+        op:
+          type: string
+
+    SyncConflictItem:
+      type: object
+      properties:
+        client_id:
+          type: string
+        reason:
+          type: string
+          description: One of no_mapping, missing_server_record, conflict, invalid_record, unknown_op
+        server_updated_at:
+          type: string
+          format: date-time
+
+    SyncResponse:
+      type: object
+      properties:
+        applied:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncAppliedItem'
+        conflicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncConflictItem'
+
+paths:
+  /mobile/register:
+    post:
+      summary: Register a mobile user (phone-first)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: Auth token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  /mobile/login:
+    post:
+      summary: Login and receive a token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, pin]
+              properties:
+                phone:
+                  type: string
+                pin:
+                  type: string
+      responses:
+        '200':
+          description: Auth token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  /mobile/transactions:
+    get:
+      summary: List recent transactions for the authenticated user's company
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TransactionResponse'
+
+    post:
+      summary: Create a transaction (mobile)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionPayload'
+      responses:
+        '200':
+          description: Created transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+
+  /mobile/sync:
+    post:
+      summary: Batch sync operations from device
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncRequest'
+      responses:
+        '200':
+          description: Applied operations and conflict list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncResponse'
+
+security:
+  - BearerAuth: []
