@@ -65,14 +65,14 @@
       "short_name": "New",
       "description": "Create a new transaction",
       "url": "/transactions/create",
-      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
+      "icons": [{ "src": "/icons/icon-96x96.svg", "sizes": "96x96" }]
     },
     {
       "name": "Analytics",
       "short_name": "Charts",
       "description": "View financial analytics",
       "url": "/analytics",
-      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
+      "icons": [{ "src": "/icons/icon-96x96.svg", "sizes": "96x96" }]
     }
   ]
 }

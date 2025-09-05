@@ -10,7 +10,7 @@ export default defineConfig(async () => {
       reactPlugin(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+        includeAssets: ['icons/icon.svg', 'icons/icon-192x192.svg'],
         manifest: {
           name: 'Akaunting Mobile',
           short_name: 'Akaunting',
