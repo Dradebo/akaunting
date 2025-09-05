@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Api\Mobile;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\Mobile\BaseMobileController;
 use Illuminate\Http\Request;
 use App\Models\Auth\User;
 use Illuminate\Support\Str;
 
-class AuthController extends Controller
+class AuthController extends BaseMobileController
 {
     public function register(Request $request)
     {
@@ -58,6 +58,7 @@ class AuthController extends Controller
         if (! $user || ! \Hash::check($data['pin'], $user->getAuthPassword())) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
+
 
         $token = $user->createToken('mobile')->plainTextToken;
 

@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "/Users/sean/Documents/GitHub/akaunting/logs/.f4a457c3bb13d9d5b1f3b43cc5d12530dfe9e056-audit.json",
+    "files": [
+        {
+            "date": 1757055902544,
+            "name": "/Users/sean/Documents/GitHub/akaunting/logs/mcp-puppeteer-2025-09-05.log",
+            "hash": "8fb611dde781516a5d9b0d7305a8f6620da335b98722a6bd8120e2d7474a969c"
+        }
+    ],
+    "hashType": "sha256"
+}

@@ -55,7 +55,7 @@ class SyncController extends Controller
                     $company = $user->companies()->first();
 
                     $tx = new TransactionModel();
-                    if (Schema::hasColumn((new TransactionModel())->getTable(), 'company_id')) {
+                    if (Schema::hasColumn((new TransactionModel())->getTable(), 'company_id') && $company && isset($company->id)) {
                         $tx->company_id = $company->id;
                     }
                     if (Schema::hasColumn((new TransactionModel())->getTable(), 'user_id')) {
@@ -93,6 +93,11 @@ class SyncController extends Controller
 
                     try {
                         $tx->save();
+                        // initialize server_version on the saved record
+                        if (Schema::hasColumn((new TransactionModel())->getTable(), 'server_version')) {
+                            $tx->server_version = 1;
+                            $tx->save();
+                        }
                     } catch (\Illuminate\Database\QueryException $e) {
                         throw $e;
                     }
@@ -102,6 +107,7 @@ class SyncController extends Controller
                         'client_id' => $client_id,
                         'server_id' => $tx->id,
                         'model' => TransactionModel::class,
+                        'server_version' => $tx->server_version ?? 1,
                     ]);
 
                     $applied[] = ['client_id' => $client_id, 'server_id' => $tx->id];
@@ -117,20 +123,37 @@ class SyncController extends Controller
                     }
 
                     $modelClass = $mapping->model ?? TransactionModel::class;
-                    $server = $modelClass::find($mapping->server_id);
+                    // resolve server record without global scopes (company/tenant scopes can hide the row)
+                    try {
+                        $server = (new $modelClass)->newQueryWithoutScopes()->find($mapping->server_id);
+                    } catch (\Throwable $e) {
+                        // fallback to default find
+                        $server = $modelClass::find($mapping->server_id);
+                    }
 
                     if (! $server) {
                         $conflicts[] = ['client_id' => $client_id, 'reason' => 'missing_server_record'];
                         continue;
                     }
 
-                    // Conflict detection: client may send client_updated_at
-                    $clientUpdatedAt = isset($payload['client_updated_at']) ? Carbon::parse($payload['client_updated_at']) : null;
-                    $serverUpdatedAt = $server->updated_at ? Carbon::parse($server->updated_at) : null;
+                    // Conflict detection: prefer server_version if client provided it; fall back to timestamps
+                    $clientServerVersion = $payload['server_version'] ?? null;
+                    $serverVersion = $server->server_version ?? null;
 
-                    if ($clientUpdatedAt && $serverUpdatedAt && $serverUpdatedAt->greaterThan($clientUpdatedAt)) {
-                        $conflicts[] = ['client_id' => $client_id, 'reason' => 'conflict', 'server_updated_at' => $serverUpdatedAt->toDateTimeString()];
-                        continue;
+                    if (! is_null($clientServerVersion) && ! is_null($serverVersion)) {
+                        if ((int) $serverVersion > (int) $clientServerVersion) {
+                            $conflicts[] = ['client_id' => $client_id, 'reason' => 'conflict', 'server_version' => $serverVersion];
+                            continue;
+                        }
+                    } else {
+                        // fallback to timestamp-based detection
+                        $clientUpdatedAt = isset($payload['client_updated_at']) ? Carbon::parse($payload['client_updated_at']) : null;
+                        $serverUpdatedAt = $server->updated_at ? Carbon::parse($server->updated_at) : null;
+
+                        if ($clientUpdatedAt && $serverUpdatedAt && $serverUpdatedAt->greaterThan($clientUpdatedAt)) {
+                            $conflicts[] = ['client_id' => $client_id, 'reason' => 'conflict', 'server_updated_at' => $serverUpdatedAt->toDateTimeString()];
+                            continue;
+                        }
                     }
 
                     // Apply updates (simple field mapping)
@@ -149,14 +172,28 @@ class SyncController extends Controller
                     }
 
                     // If client provided an updated_at timestamp, apply it so future conflict checks observe it
-                    if ($clientUpdatedAt) {
-                        $server->updated_at = $clientUpdatedAt;
+                    if (isset($payload['client_updated_at'])) {
+                        try {
+                            $server->updated_at = Carbon::parse($payload['client_updated_at']);
+                        } catch (\Exception $e) {
+                            // ignore parse errors
+                        }
+                    }
+
+                    // bump server_version to a monotonic increment to avoid timestamp race issues
+                    if (Schema::hasColumn((new TransactionModel())->getTable(), 'server_version')) {
+                        $server->server_version = (int) ($server->server_version ?? 1) + 1;
                     }
 
                     $this->fillNonNullableDefaults($server, (new TransactionModel())->getTable(), $request->user()->companies()->first(), $request->user());
                     $server->save();
 
-                    $applied[] = ['client_id' => $client_id, 'server_id' => $server->id, 'op' => 'update'];
+                    $applied[] = ['client_id' => $client_id, 'server_id' => $server->id, 'op' => 'update', 'server_version' => $server->server_version ?? null];
+                    // persist mapping server_version
+                    if ($mapping) {
+                        $mapping->server_version = $server->server_version ?? null;
+                        $mapping->save();
+                    }
                     continue;
                 }
 
@@ -167,7 +204,11 @@ class SyncController extends Controller
                     }
 
                     $modelClass = $mapping->model ?? TransactionModel::class;
-                    $server = $modelClass::find($mapping->server_id);
+                    try {
+                        $server = (new $modelClass)->newQueryWithoutScopes()->find($mapping->server_id);
+                    } catch (\Throwable $e) {
+                        $server = $modelClass::find($mapping->server_id);
+                    }
 
                     if (! $server) {
                         $conflicts[] = ['client_id' => $client_id, 'reason' => 'missing_server_record'];
@@ -190,7 +231,7 @@ class SyncController extends Controller
                 $company = $user->companies()->first();
 
                 $tx = new TransactionModel();
-                if (Schema::hasColumn((new TransactionModel())->getTable(), 'company_id')) {
+                if (Schema::hasColumn((new TransactionModel())->getTable(), 'company_id') && $company && isset($company->id)) {
                     $tx->company_id = $company->id;
                 }
                 if (Schema::hasColumn((new TransactionModel())->getTable(), 'user_id')) {

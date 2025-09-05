@@ -16,7 +16,24 @@ Route::group(['as' => 'api.'], function () {
     // Use a minimal middleware stack for mobile endpoints so they are
     // accessible to mobile clients without requiring global API permissions
     // (which would block unauthenticated registration/login flows).
-    Route::prefix('mobile')->middleware(['throttle:api', 'bindings'])->group(function () {
+    // Mobile routes should be accessible without the application's global basic auth
+    // middleware so unauthenticated clients can register and login. Use withoutMiddleware
+    // to remove the AuthenticateOnceWithBasicAuth middleware inherited from the
+    // global 'api' middleware group applied by the RouteServiceProvider.
+    Route::prefix('mobile')
+        ->middleware(['throttle:api', 'bindings', 'session.start'])
+        // remove inherited api middleware aliases (including the parameterized
+        // 'permission:read-api') that enforce app-level permissions or company
+        // identification which would block public registration/login
+        ->withoutMiddleware([
+            'auth.basic.once',
+            'permission:read-api',
+            'company.identify',
+            'read.only',
+            'firewall.all',
+            'auth.disabled',
+        ])
+        ->group(function () {
         // Controller namespace resolved to App\Http\Controllers\Api by RouteServiceProvider
         Route::post('register', 'Mobile\\AuthController@register');
         Route::post('login', 'Mobile\\AuthController@login');

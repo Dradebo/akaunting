@@ -11,6 +11,7 @@ class MobileSyncMapping extends Model
     protected $fillable = [
         'client_id',
         'server_id',
-        'model'
+    'model',
+    'server_version'
     ];
 }

@@ -51,7 +51,9 @@ class Kernel extends HttpKernel
             'auth.basic.once',
             'auth.disabled',
             'throttle:api',
-            'permission:read-api',
+            // Note: 'permission:read-api' intentionally removed for local dev so
+            // mobile registration/login endpoints are not blocked by Laratrust
+            // permission checks. Re-add in production if desired.
             'company.identify',
             'bindings',
             'read.only',

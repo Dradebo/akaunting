@@ -29,6 +29,11 @@ trait FillsNonNullableColumns
             if (isset($col->notnull) && $col->notnull == 1) {
                 $name = $col->name;
 
+                // skip primary key to avoid explicit id inserts which conflict with autoincrement
+                if ($name === 'id') {
+                    continue;
+                }
+
                 // only fill if not already set (null). If attribute is missing or null, fill it.
                 if (array_key_exists($name, $model->getAttributes()) && $model->{$name} !== null) {
                     continue;

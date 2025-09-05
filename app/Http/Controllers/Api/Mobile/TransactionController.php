@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api\Mobile;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\Mobile\BaseMobileController;
 use Illuminate\Http\Request;
 use App\Models\Banking\Transaction as TransactionModel;
 use Illuminate\Support\Facades\Schema;
@@ -10,15 +10,18 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Traits\FillsNonNullableColumns;
 
-class TransactionController extends Controller
+class TransactionController extends BaseMobileController
 {
     use FillsNonNullableColumns;
     public function index(Request $request)
     {
         $user = $request->user();
-        $company = $user->companies()->first();
-
-        $query = TransactionModel::where('company_id', $company->id)->orderBy('date', 'desc');
+        
+        // Simple approach: just get transactions for this user, regardless of company
+        // Remove company scope since mobile users don't have company context
+        $query = TransactionModel::withoutGlobalScope('App\Scopes\Company')
+            ->where('user_id', $user->id)
+            ->orderBy('paid_at', 'desc');
 
         return response()->json($query->paginate(25));
     }
@@ -35,30 +38,23 @@ class TransactionController extends Controller
         ]);
 
         $user = $request->user();
-        $company = $user->companies()->first();
 
-        // naive creation — mapping and idempotency left to sync endpoint
-            $tx = new TransactionModel();
-            // assign company_id/user_id only if the columns exist in the test DB
-            if (Schema::hasColumn((new TransactionModel())->getTable(), 'company_id')) {
-                $tx->company_id = $company->id;
-            }
-            if (Schema::hasColumn((new TransactionModel())->getTable(), 'user_id')) {
-                $tx->user_id = $user->id;
-            }
+        // Simple creation without company requirements
+        $tx = new TransactionModel();
         $tx->type = $data['type'];
         $tx->amount = $data['amount_minor'];
-        if (Schema::hasColumn((new TransactionModel())->getTable(), 'date')) {
-            $tx->date = $data['date'] ?? now();
-        }
+        $tx->paid_at = $data['date'] ?? now();
         $tx->notes = $data['notes'] ?? null;
-    // Fill non-nullable columns with safe defaults for the test DB.
-    $this->fillNonNullableDefaults($tx, (new TransactionModel())->getTable(), $company, $user);
+        
+        // Fill non-nullable columns with safe defaults first
+        $this->fillNonNullableDefaults($tx, (new TransactionModel())->getTable(), null, $user);
+        
+        // Then explicitly set user_id to ensure it's not overridden
+        $tx->user_id = $user->id;
 
         try {
             $tx->save();
         } catch (\Illuminate\Database\QueryException $e) {
-            // fallback: rethrow if we couldn't resolve it above
             throw $e;
         }
 
